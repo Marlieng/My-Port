@@ -1,155 +1,172 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.ComponentModel;
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using static UnityEngine.UI.Image;
 using static GameManager;
 
-public class CraneLifr : MonoBehaviour
+public class CraneLift : MonoBehaviour
 {
-    [Header("Crance lift moving")]
-    Rigidbody2D liftRB;
+    [NonSerialized]
+    public bool containerAttached;
 
-    public Transform minRange;
-    public Transform maxRange;
-
-    public float speedLift = 1000;
-
-    float vertical;
-
-    [Header("Containers Transporting")]
-    public Transform portLoadSector;
-    public Transform portUnloadSector;
-    public Transform shipLoadSector;
-    public Transform shipUnloadSector;
-
-    public LayerMask containerLayer;
-    public LayerMask sectorLayer;
-    public LayerMask freeSpaceLayer;
-
-    Transform goalPlace;
-    Transform startingPlace;
-
+    Transform goalSector;
+    Transform startingSector;
     Collider2D container;
+    Collider2D actualSector;
 
-    Collider2D actualPlace;
-    Collider2D freeSpace;
-
-    bool attachedContainer;
-
-    [SerializeField]
-    private InputActionReference movement;
     [SerializeField]
     private InputActionReference attach;
 
     private void Start()
     {
-        liftRB = GetComponent<Rigidbody2D>();
+        Instance.craneLift = gameObject.GetComponent<CraneLift>();
     }
     private void Update()
     {
-        vertical = movement.action.ReadValue<Vector2>().y;
         ContainerTransporting();
-        LiftMove();
     }
-    public void ContainerTransporting()
+    /// <summary>
+    /// Is responsible for the container transport. Checks wheather the container
+    /// can be attached or detached
+    /// </summary>
+    private void ContainerTransporting()
     {
-        if (attach.action.triggered)
+        container = Physics2D.OverlapPoint(transform.position, Instance.activeContainerLayer);
+        if (container!=null)
         {
-            container = Physics2D.OverlapPoint(transform.position, containerLayer);
-            actualPlace = Physics2D.OverlapPoint(transform.position, sectorLayer);
+            if (attach.action.triggered && ShipManager.Instance.shipParked)
+            {
+                actualSector = Physics2D.OverlapPoint(transform.position, Instance.sectorLayer);
 
-            if (!attachedContainer)
-            {
-                SetTargerLocation();
-                AttachContainer();
-                QuestProgressUpdate();
+                if (!containerAttached)
+                {
+                    UpdateSectorAssignment();
+                    AttachContainer();
+                    UpdateQuestProgressBySector();
+                }
+                else if (containerAttached)
+                {
+                    DetachContainer();
+                    UpdateQuestProgressBySector();
+                }
             }
-            else if (attachedContainer)
+            //warns Player that the ship has not parked yet, so it cannot attach container.
+            else if (attach.action.triggered && !ShipManager.Instance.shipParked
+                && container != null)
             {
-                DetachContainer();
-                QuestProgressUpdate();
+                Message.Instance.WarningMessage("You cannot attach a container because the ship isn't parked.");
             }
         }
     }
-
-    private void SetTargerLocation()
+    /// <summary>
+    ///Sets the sector in which the crane lift is currently located to goalSector and another to startingSector
+    /// </summary>
+    public void UpdateSectorAssignment()
     {
-        if (!attachedContainer&&actualPlace!=null)
+        if (actualSector!=null)
         {
-            if (actualPlace.transform.Equals(portLoadSector) ||
-                actualPlace.transform.Equals(shipUnloadSector))//Miejsce do za³adowania na port
+            if (actualSector.transform.Equals(Instance.portLoadSector) ||
+                actualSector.transform.Equals(Instance.shipUnloadSector))
             {
-                goalPlace = shipUnloadSector;
-                startingPlace = portLoadSector;
+                goalSector = Instance.shipUnloadSector;
+                startingSector = Instance.portLoadSector;
             }
-            else if (actualPlace.transform.Equals(portUnloadSector) ||
-                actualPlace.transform.Equals(shipLoadSector))//Miejsce do roz³adowania na port
+            else if (actualSector.transform.Equals(Instance.portUnloadSector) ||
+                actualSector.transform.Equals(Instance.shipLoadSector))
             {
-                goalPlace = portUnloadSector;
-                startingPlace = shipLoadSector;
+                goalSector = Instance.portUnloadSector;
+                startingSector = Instance.shipLoadSector;
             }
         }
     }
 
     private void AttachContainer()
     {
-        if (container != null)
-        {
-            container.transform.SetParent(transform);
-            container.transform.position = transform.position;
+        container.transform.SetParent(transform);
+        container.transform.position = transform.position;
 
-            container.GetComponent<SpriteRenderer>().sortingOrder = 1;
+        container.GetComponent<SpriteRenderer>().sortingOrder = 1;
 
-            attachedContainer = true;
-
-        }
+        containerAttached = true;
+        CallUpReachStacker();
     }
     private void DetachContainer()
     {
-        freeSpace = Physics2D.OverlapPoint(transform.position, freeSpaceLayer);
-        if (actualPlace!=null&&freeSpace!=null&&freeSpace.transform.childCount==0)
+        Collider2D freePlace = Physics2D.OverlapPoint(transform.position, Instance.freeSpaceLayer);
+        if (freePlace != null)
         {
-            if (actualPlace.transform.Equals(goalPlace) || actualPlace.transform.Equals(startingPlace))
+            if (CheckPlaceAvailability(Instance.sectorReachStackerToUnload, freePlace.transform) && (actualSector.transform == Instance.portLoadSector) || (actualSector.transform == Instance.shipUnloadSector) ||
+                CheckPlaceAvailability(Instance.sectorReachStackerToLoad, freePlace.transform) && (actualSector.transform == Instance.portUnloadSector) || (actualSector.transform == Instance.shipLoadSector))
             {
+                if (actualSector != null && freePlace.transform.childCount == 0)
+                {
+                    if (actualSector.transform.Equals(goalSector) || actualSector.transform.Equals(startingSector))
+                    {
+                        container.transform.SetParent(freePlace.transform);
+                        container.transform.position = freePlace.transform.position;
 
-                container.transform.SetParent(freeSpace.transform);
-                container.transform.position = freeSpace.transform.position;
+                        container.GetComponent<SpriteRenderer>().sortingOrder = 0;
 
-                container.GetComponent<SpriteRenderer>().sortingOrder = 0;
+                        container = null;
+                        containerAttached = false;
 
-                container = null;
-                attachedContainer = false;
+                        CallUpReachStacker();
+                    }
+                }
             }
         }
     }
-
-    private void QuestProgressUpdate()
+    /// <summary>
+    /// checks whether the place where the Player wants to detach the container
+    /// is not in the row into which the reach stacker entered or whether 
+    /// the car's target is further away than this place
+    /// </summary>
+    /// <param name="reachedStacker">Reach stacker of a given sector</param>
+    /// <param name="freePlace">The Place where the Player want to detach a container</param>
+    /// <returns>return true if the place where the Player wants to detach the container
+    /// is in a differerent row than where reach stacker entered or is further
+    /// from the destination </returns>
+    bool CheckPlaceAvailability(Car reachedStacker, Transform freePlace)
     {
-        if (actualPlace.transform.Equals(shipUnloadSector))
+        //the row in which there is a free place where Player want to detach a container  
+        Transform currentRow = freePlace.transform.parent;
+
+        return currentRow != reachedStacker.destinationRow ||
+            (currentRow == reachedStacker.destinationRow &&
+           reachedStacker.destinationIndex < freePlace.transform.GetSiblingIndex()
+            && reachedStacker.insideRow) ||
+            (currentRow == reachedStacker.destinationRow) &&
+            !reachedStacker.insideRow;
+    }
+    /// <summary>
+    /// tells the UpdateQuestProgressByType method to update the quest progress with
+    /// the appropriate quest type depending on what sector the crane lift is currently in
+    /// </summary>
+    private void UpdateQuestProgressBySector()
+    {
+        if (actualSector!=null)
         {
-            QuestManager.instance.QuestProgressUpdate(QuestType.LoadOntoShip, shipUnloadSector);
-        }
-        else if (actualPlace.transform.Equals(portUnloadSector))
-        {
-            QuestManager.instance.QuestProgressUpdate(QuestType.LoadOntoPort, portUnloadSector);
+            if (actualSector.transform.Equals(Instance.shipLoadSector))
+            {
+                QuestManager.Instance.UpdateQuestProgressByType(QuestType.LoadOnShip, Instance.shipLoadSector);
+            }
+            else if (actualSector.transform.Equals(Instance.portLoadSector))
+            {
+                QuestManager.Instance.UpdateQuestProgressByType(QuestType.LoadOnPort, Instance.portLoadSector);
+            }
         }
     }
-
-    private void LiftMove()
+    /// <summary>
+    /// Call up the reach stacker to the sector where the crane lift is currently located
+    /// </summary>
+    public void CallUpReachStacker()
     {
-        float Range = Mathf.Clamp(transform.position.y, minRange.position.y, maxRange.position.y);
-        if (Range!=transform.position.y)
+        if (actualSector.transform.Equals(Instance.portLoadSector))
         {
-            liftRB.velocity = Vector2.zero;
+            Instance.sectorReachStackerToUnload.GetComponent<UnloadReachStacker>().FindDestination();
         }
-        else
+        else if (actualSector.transform.Equals(Instance.portUnloadSector))
         {
-            liftRB.velocity = new Vector2(liftRB.velocity.x, vertical * speedLift);
+            Instance.sectorReachStackerToLoad.GetComponent<LoadingReachStacker>().FindDestination();
         }
-        transform.position = new Vector2(transform.position.x, Range);
     }
 }

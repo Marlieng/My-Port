@@ -4,7 +4,31 @@ using UnityEngine;
 
 public class GameManager : MonoBehaviour
 {
-    public static GameManager instance { get; set; }
+    private static GameManager instance;
+    public static GameManager Instance { get { return instance; } }
+
+    public Sprite[] typeOfContainers;
+
+    [Header("Containers")]
+    public Color deactivateContainerColor;
+    public Color activeContainerColor;
+
+    [Header("Transporting Containers")]
+    public CraneLift craneLift;
+    public LoadingReachStacker sectorReachStackerToLoad;
+    public UnloadReachStacker sectorReachStackerToUnload;
+
+    [Header("Current Sectors")]
+    public Transform portLoadSector;
+    public Transform portUnloadSector;
+    public Transform shipLoadSector;
+    public Transform shipUnloadSector;
+
+    [Header("Layers")]
+    public LayerMask sectorLayer;
+    public LayerMask freeSpaceLayer;
+    public LayerMask activeContainerLayer;
+    public int deactivateContainerLayer = 9;
 
     public enum ContainerType
     {
@@ -17,13 +41,19 @@ public class GameManager : MonoBehaviour
     }
     public enum QuestType
     {
-        LoadOntoShip,
-        LoadOntoPort
+        LoadOnShip,
+        LoadOnPort
     }
-    public Sprite[] typeOfContainers;
 
     private void Awake()
     {
-        instance = this;
+        if (instance!=null && instance!=this)
+        {
+            Destroy(gameObject);
+        }
+        else
+        {
+            instance = this;
+        }
     }
 }

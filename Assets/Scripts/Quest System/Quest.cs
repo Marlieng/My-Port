@@ -16,13 +16,8 @@ public class Quest : MonoBehaviour
 
     public TextMeshProUGUI questName;
     public TextMeshProUGUI questDescription;
-
     public Slider questStagePrefab;
-
-    Dictionary<ContainerType, int> segregatedContainerTypes;
-
-    [NonSerialized]
-    int allNotMatching = 0;
+    public string deactivateContainer = "Deactivate Container";
 
     private void Start()
     {
@@ -39,54 +34,80 @@ public class Quest : MonoBehaviour
             partQuest.GetComponentInChildren<TextMeshProUGUI>().text = 
                 $"{questStructure.Type} {item.Value} {item.Key}";
         }
-
-        //UnityAction finishButtonAction = new UnityAction(CheckComplete);
-        //Button finishQuest = Instantiate(finishQuestPrefab, transform);
-        //finishQuest.onClick.AddListener(finishButtonAction);
     }
-
-    public void ProgressUpdate(Transform sector)
+    /// <summary>
+    /// updates quest progress
+    /// </summary>
+    /// <param name="sector">The sector in which the change occured</param>
+    public void UpdateProgress(Transform sector)
     {
-        List<ContainerType> placeContainerType = new List<ContainerType>();
-        foreach (Transform space in sector)
+        //stored all types of containers that are in a given sector
+        List<ContainerType> sectorContainerType = new List<ContainerType>();
+        GameObject container;
+
+        //counts and adds all container types present in the sector to sectorContainerType
+        foreach (Transform row in sector.Find("All Places"))
         {
-            if (space.GetComponentInChildren<Container>()!=null)
+            if (row.name.Contains("Row"))
             {
-                placeContainerType.Add(space.GetComponentInChildren<Container>().containerType);
+                foreach (Transform place in row)
+                {
+                    if (place.childCount != 0)
+                    {
+                        container = place.GetComponentInChildren<Container>().gameObject;
+
+                        if (container.gameObject.layer != Instance.deactivateContainerLayer)
+                        {
+                            sectorContainerType.Add(place.GetComponentInChildren<Container>().type);
+                        }
+                    }
+                }
             }
         }
-        segregatedContainerTypes = placeContainerType.GroupBy(x=>x).ToDictionary(y=>y.Key,y=>y.Count());
-
+        /*sorts all container types by keys and values where keys are
+         * the container types and value is the number of containers of a given type*/
+        Dictionary<ContainerType, int> segregatedContainerTypes =
+            sectorContainerType.GroupBy(x=>x).ToDictionary(y=>y.Key,y=>y.Count());
+        
         foreach (ContainerType requiredContainerType in questStructure.PlayerProgress.Keys.ToList())
         {
             for (int i = 0; i < questStructure.PlayerProgress.Count(); i++)
             {
                 if (segregatedContainerTypes.Keys.Contains(requiredContainerType) )
                 {
-                    questStructure.PlayerProgress[requiredContainerType] = segregatedContainerTypes[requiredContainerType];
-
-                    transform.Find(requiredContainerType.ToString())
-                        .GetComponent<Slider>().value = segregatedContainerTypes[requiredContainerType];
+                    UpdateSubtaskValue(requiredContainerType, segregatedContainerTypes[requiredContainerType]);
                     break;
                 }
                 else
                 {
-                    questStructure.PlayerProgress[requiredContainerType] = 0;
-
-                    transform.Find(requiredContainerType.ToString())
-                        .GetComponent<Slider>().value = 0;
+                    UpdateSubtaskValue(requiredContainerType, 0);
                 }
             }
         }
     }
-    public void CheckComplete()
+
+    /// <param name="containerTypeCount">current count of a given container type</param>
+    private void UpdateSubtaskValue(ContainerType requiredContainerType, int containerTypeCount)
     {
+        questStructure.PlayerProgress[requiredContainerType] = containerTypeCount;
+
+        /*finds a subtask (slider) with the name of the required
+         * container type and sets the progress of this subtask to
+         * the number of containers of a given type in the sector */
+        transform.Find(requiredContainerType.ToString())
+            .GetComponent<Slider>().value = containerTypeCount;
+    }
+
+    public void CheckQuestComplete()
+    {
+        int allNotMatching = 0;
         if (questStructure.PlayerProgress.SequenceEqual(questStructure.QuestRequirements))
         {
             questStructure.isCompleted = true;
-            Debug.Log("That's good!");
+            Debug.Log("Wszystko siê zgadza :D!");
         }
         else
+        //The feature is still being refined
         {
             allNotMatching = 0;
             foreach (var item in questStructure.PlayerProgress)
@@ -94,23 +115,6 @@ public class Quest : MonoBehaviour
                 allNotMatching += questStructure.QuestRequirements.Where(x => x.Key == item.Key)
                     .Sum(x => Math.Abs(x.Value - item.Value));
             }
-            //foreach (var questRequirement in questStructure.QuestRequirements)
-            //{
-            //    foreach (var playerProgress in questStructure.PlayerProgress)
-            //    {
-            //        int notMatching = 0;
-            //        if (questRequirement.Key==playerProgress.Key)
-            //        {
-            //            notMatching = questRequirement.Value - playerProgress.Value;
-            //            allNotMatching += allNotMatching;
-            //        }
-            //        Debug.Log(notMatching);
-            //    }
-            //    //notMatching += questStructure.PlayerProgress.Where(
-            //    //    x => x.Key == questRequirement.Key 
-            //    //    && notMatchingx.Value == item.Value).Count();
-            //}
-            Debug.Log(allNotMatching);
         }
     }
 }

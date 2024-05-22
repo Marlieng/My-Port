@@ -1,32 +1,46 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.UI;
 using static QuestManager;
 
 public class MainQuest : MonoBehaviour
 {
+    [NonSerialized]
+    public int ID;
+    [NonSerialized]
     public List<Quest> questList = new List<Quest>();
-
+    CraneLift craneLiftScript;
 
     private void Start()
     {
-        transform.GetComponentInChildren<Button>().onClick.AddListener(CheckComplete);
+        transform.GetComponentInChildren<Button>().onClick.AddListener(CheckQuestsComplete);
+        transform.GetComponentInChildren<Button>().onClick.AddListener(ShipManager.Instance.ShipDeparture);
+
+        craneLiftScript = GameManager.Instance.craneLift.GetComponent<CraneLift>();
     }
-    public void CheckComplete()
+    public void CheckQuestsComplete()
     {
-        if (questList.All(x=>x.questStructure.isCompleted))
+        if (ShipManager.Instance.shipParked && !craneLiftScript.containerAttached)
         {
-            Debug.Log("Ship quest is completly completed!");
-        }
-        else
-        {
-            Debug.Log("Oh no! Please try again");
-            foreach (var quest in questList)
+            foreach (Quest quest in questList)
             {
-                quest.CheckComplete();
+                quest.CheckQuestComplete();
             }
+
+            if (questList.All(x => x.questStructure.isCompleted))
+            {
+                Debug.Log("Ship quest is completly completed!");
+            }
+            else
+            {
+                Debug.Log("Oh no! Please try again");
+            }
+            
+            Instance.FinishMainQuest(GetInstanceID());
         }
     }
 }

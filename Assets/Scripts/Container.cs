@@ -7,43 +7,46 @@ using Unity.VisualScripting;
 using UnityEngine;
 using static TMPro.SpriteAssetUtilities.TexturePacker_JsonArray;
 using static GameManager;
+using Unity.Mathematics;
 
 public class Container : MonoBehaviour
 {
-    Sprite[] typeOfContainers;
-    public ContainerType containerType;
-
+    public ContainerType type;
      void Start()
     {
-        typeOfContainers = instance.typeOfContainers;
-        int random = UnityEngine.Random.Range(0, typeOfContainers.Length);
-        GetComponent<SpriteRenderer>().sprite = typeOfContainers[random];
-
-
-        string spriteName = typeOfContainers[random].name.ToLower();
-        if (spriteName.Contains("red"))
+        int random = UnityEngine.Random.Range(0, Instance.typeOfContainers.Length);
+        SetContainerType(random);
+    }
+    /// <summary>
+    /// Sets the container type
+    /// </summary>
+    /// <param name="num">The type will be set based on this number</param>
+    public void SetContainerType(int num)
+    {
+        string typeName = Instance.typeOfContainers[num].name.ToLower();
+        //Decides what type the container will take
+        switch (typeName)
         {
-            containerType = GameManager.ContainerType.RedContainer;
+            case string name when name.Contains("red"):
+                type = ContainerType.RedContainer;
+                break;
+            case string name when name.Contains("blue"):
+                type = ContainerType.BlueContainer;
+                break;
+            case string name when name.Contains("green"):
+                type = ContainerType.GreenContainer;
+                break;
+            case string name when name.Contains("white"):
+                type = ContainerType.WhiteContainer;
+                break;
+            case string name when name.Contains("yellow"):
+                type = ContainerType.YellowContainer;
+                break;
+            case string name when name.Contains("orange"):
+                type = ContainerType.OrangeContainer;
+                break;
         }
-        else if (spriteName.Contains("blue"))
-        {
-            containerType = GameManager.ContainerType.BlueContainer;
-        }
-        else if (spriteName.Contains("green"))
-        {
-            containerType = GameManager.ContainerType.GreenContainer;
-        }
-        else if (spriteName.Contains("white"))
-        {
-            containerType = GameManager.ContainerType.WhiteContainer;
-        }
-        else if (spriteName.Contains("yellow"))
-        {
-            containerType = GameManager.ContainerType.YellowContainer;
-        }
-        else if (spriteName.Contains("orange"))
-        {
-            containerType = GameManager.ContainerType.OrangeContainer;
-        }
+        //decides what sprite type the container will take
+        GetComponent<SpriteRenderer>().sprite = Instance.typeOfContainers[num];
     }
 }
