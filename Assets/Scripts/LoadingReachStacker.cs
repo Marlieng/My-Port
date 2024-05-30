@@ -14,7 +14,6 @@ public class LoadingReachStacker : Car
         if (!insideRow && attachmentPosition.childCount == 1 && !cooldown)
         {
             Transform[] waypointObjects = waypointsParent.GetComponentsInChildren<Transform>();
-           
             //at each waypoint it calls the FindTargetInRow method to find an available target
             foreach (Transform waypointObject in waypointObjects)
             {
@@ -33,12 +32,9 @@ public class LoadingReachStacker : Car
                 foreach (Transform waypointObject in waypointObjects)
                 {
                     Waypoint waypoint = waypointObject.GetComponent<Waypoint>();
-                    if (waypoint != null)
+                    if (waypoint != null && waypoint.targetSpace == previousGoal)
                     {
-                        if (waypoint.targetSpace == previousGoal)
-                        {
-                            return;
-                        }
+                        return;
                     }
                 }
             }
@@ -58,45 +54,36 @@ public class LoadingReachStacker : Car
                     return;
                 }
             }
-
             /*If the destination is not found, it calculates the route to the beginning
          * waypoint by calling the DetermineRoute  method*/
-            returnToStartWaypoint = true;
-            destinationRow = null;
-            destinationIndex = -1;
-            DetermineRoute(0);
-            previousGoal = null;
+            if (!returnToStartWaypoint)
+            {
+                returnToStartWaypoint = true;
+                destinationRow = null;
+                destinationIndex = -1;
+                DetermineRoute(0);
+                previousGoal = null;
+            }
         }
     }
     public override void ReachedDestination()
     {
         Container containerObject = transform.GetComponentInChildren<Container>();
         currentWaypointIndex--;
-        SetContainerActive(containerObject);
+        containerObject.SetContainerActive(true);
         containerObject.transform.SetParent(currentRoute[currentWaypointIndex]);//Set new parent for container of this Reached Stacker
         currentRoute[currentWaypointIndex].GetChild(0).transform.localPosition = Vector3.zero;
-        returnToStartWaypoint = true;
-        goalSet = false;
-
-        currentWaypointIndex = currentRoute[currentWaypointIndex - 1].GetSiblingIndex();
-        currentRoute.Clear();
-        for (int i = 0; currentWaypointIndex >= i; i++)
-        {
-            currentRoute.Add(waypointsParent.GetChild(i));
-        }
+        
+        base.ReachedDestination();
     }
     public override void ReachedStart()
     {
+        previousWaypointIndex = -1;
         if (attachmentPosition.childCount < 1)
         {
             GameObject container = Instantiate(deactivatedContainerPrefab, attachmentPosition);
             container.transform.localPosition = Vector3.zero;
             StartCoroutine(CoolDown());
         }
-    }
-    private void SetContainerActive(Container containerObject)
-    {
-        containerObject.gameObject.layer = 6;
-        containerObject.GetComponent<SpriteRenderer>().color = GameManager.Instance.activeContainerColor;
     }
 }

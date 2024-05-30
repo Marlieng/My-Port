@@ -64,11 +64,14 @@ public class UnloadReachStacker : Car
             }
             /*If the destination is not found, it calculates the route to the beginning
              * waypoint by calling the DetermineRoute  method*/
-            returnToStartWaypoint = true;
-            destinationRow = null;
-            destinationIndex = -1;
-            DetermineRoute(0);
-            previousGoal = null;
+            if (!returnToStartWaypoint)
+            {
+                returnToStartWaypoint = true;
+                destinationRow = null;
+                destinationIndex = -1;
+                DetermineRoute(0);
+                previousGoal = null;
+            }
         }
     }
     public override void ReachedDestination()
@@ -76,15 +79,8 @@ public class UnloadReachStacker : Car
         currentWaypointIndex--;
         currentRoute[currentWaypointIndex].SetParent(attachmentPosition);
         attachmentPosition.GetChild(0).transform.localPosition = Vector3.zero;
-        returnToStartWaypoint = true;
-        goalSet = false;
 
-        currentWaypointIndex = currentRoute[currentWaypointIndex - 1].GetSiblingIndex();
-        currentRoute.Clear();
-        for (int i = 0; currentWaypointIndex >= i; i++)
-        {
-            currentRoute.Add(waypointsParent.GetChild(i));
-        }
+        base.ReachedDestination();
     }
     public override void ReachedStart()
     {

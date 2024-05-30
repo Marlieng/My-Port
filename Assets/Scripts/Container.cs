@@ -49,4 +49,16 @@ public class Container : MonoBehaviour
         //decides what sprite type the container will take
         GetComponent<SpriteRenderer>().sprite = Instance.typeOfContainers[num];
     }
+    /// <summary>
+    /// Specifies whether the container should be active or deactive
+    /// </summary>
+    /// <param name="isActive">decides whether the container is active or not. When the value is true the container is active and when false it is deactive</param>
+    public void SetContainerActive(bool isActive)
+    {
+        if (isActive)
+        {
+            gameObject.layer = 6;
+            GetComponent<SpriteRenderer>().color = Instance.activeContainerColor;
+        }
+    }
 }
